@@ -1,6 +1,8 @@
 {
   "name": "VWConnApp",
   "version": "0.0.1",
+  "description": "Professional ECU Diagnostic Tool for VW Tiguan and Nissan Titan XD 2017",
+  "author": "kodiakbadd",
   "private": true,
   "main": "main.js",
   "scripts": {
@@ -72,12 +74,8 @@
         "rpm"
       ],
       "category": "Utility",
-      "icon": "build/icon.png",
-      "desktop": {
-        "Name": "VWConnApp",
-        "Comment": "Professional ECU Diagnostic Tool",
-        "Categories": "Utility;Development;Electronics;"
-      }
+      "maintainer": "kodiakbadd",
+      "description": "Professional ECU Diagnostic Tool for VW Tiguan and Nissan Titan XD"
     },
     "mac": {
       "target": "dmg",
