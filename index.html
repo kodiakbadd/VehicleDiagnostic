@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>VW Tiguan / Nissan Titan XD Advanced Diagnostics - Professional Edition</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      margin: 0; 
+      padding: 20px; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container { 
+      max-width: 1600px; 
+      margin: 0 auto; 
+      background: white; 
+      padding: 30px; 
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 { 
+      color: #2c3e50; 
+      margin: 0 0 10px 0;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: #7f8c8d;
+      margin: 0 0 30px 0;
+      font-size: 14px;
+    }
+    .safe-mode-indicator {
+      display: inline-block;
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-left: 20px;
+    }
+    .safe-mode-on {
+      background: #2ecc71;
+      color: white;
+    }
+    .safe-mode-off {
+      background: #e74c3c;
+      color: white;
+    }
+    .section { 
+      margin: 20px 0; 
+      padding: 20px; 
+      border: 1px solid #ecf0f1; 
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .section h2 {
+      margin: 0 0 15px 0;
+      color: #34495e;
+      font-size: 18px;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 8px;
+    }
+    button { 
+      padding: 10px 20px; 
+      margin: 5px; 
+      background: #3498db; 
+      color: white; 
+      border: none; 
+      cursor: pointer; 
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    button:hover:not(:disabled) { 
+      background: #2980b9;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    button:disabled { 
+      background: #95a5a6; 
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    button.danger {
+      background: #e74c3c;
+    }
+    button.danger:hover:not(:disabled) {
+      background: #c0392b;
+    }
+    button.success {
+      background: #27ae60;
+    }
+    button.success:hover:not(:disabled) {
+      background: #229954;
+    }
+    button.warning {
+      background: #f39c12;
+    }
+    button.warning:hover:not(:disabled) {
+      background: #d68910;
+    }
+    select, input { 
+      padding: 8px 12px; 
+      margin: 5px; 
+      border-radius: 6px; 
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+    input[type="text"], input[type="number"] {
+      min-width: 200px;
+    }
+    #output { 
+      background: #1e1e1e; 
+      color: #00ff00; 
+      padding: 15px; 
+      height: 250px; 
+      overflow-y: auto; 
+      font-family: 'Courier New', monospace; 
+      font-size: 12px; 
+      border-radius: 6px;
+      border: 2px solid #2c3e50;
+    }
+    #liveData, #dtcCodes, #parameterBrowser, #backupList { 
+      background: #fff; 
+      padding: 15px; 
+      min-height: 150px; 
+      border-radius: 6px; 
+      border: 1px solid #ddd;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .grid { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 20px; 
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 15px;
+    }
+    .status-connected { color: #27ae60; font-weight: bold; }
+    .status-disconnected { color: #e74c3c; font-weight: bold; }
+    .parameter-item {
+      padding: 10px;
+      margin: 5px 0;
+      background: #ecf0f1;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .parameter-item:hover {
+      background: #d5dbdb;
+      transform: translateX(5px);
+    }
+    .parameter-name {
+      font-weight: bold;
+      color: #2c3e50;
+    }
+    .parameter-desc {
+      font-size: 12px;
+      color: #7f8c8d;
+      margin-top: 3px;
+    }
+    .parameter-safety {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      margin-left: 10px;
+    }
+    .safety-low { background: #2ecc71; color: white; }
+    .safety-medium { background: #f39c12; color: white; }
+    .safety-high { background: #e67e22; color: white; }
+    .safety-critical { background: #e74c3c; color: white; }
+    .backup-item {
+      padding: 12px;
+      margin: 8px 0;
+      background: #f8f9fa;
+      border-left: 4px solid #3498db;
+      border-radius: 4px;
+    }
+    .backup-item:hover {
+      background: #e8f4f8;
+    }
+    .tab-container {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #ecf0f1;
+    }
+    .tab {
+      padding: 12px 24px;
+      background: #ecf0f1;
+      border: none;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #7f8c8d;
+      transition: all 0.3s;
+    }
+    .tab.active {
+      background: #3498db;
+      color: white;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .info-box {
+      background: #e8f4f8;
+      border-left: 4px solid #3498db;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .warning-box {
+      background: #fff3cd;
+      border-left: 4px solid #f39c12;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .error-box {
+      background: #f8d7da;
+      border-left: 4px solid #e74c3c;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.6);
+    }
+    .modal-content {
+      background-color: white;
+      margin: 5% auto;
+      padding: 30px;
+      border-radius: 12px;
+      width: 80%;
+      max-width: 600px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover {
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      VW Tiguan / Nissan Titan XD Advanced Diagnostics
+      <span id="safeModeIndicator" class="safe-mode-indicator safe-mode-on">🔒 SAFE MODE</span>
+    </h1>
+    <p class="subtitle">Professional ECU Diagnostic and Programming Tool v2.0</p>
+
+    <!-- Tab Navigation -->
+    <div class="tab-container">
+      <button class="tab active" onclick="switchTab('connection')">Connection</button>
+      <button class="tab" onclick="switchTab('diagnostics')">Diagnostics</button>
+      <button class="tab" onclick="switchTab('parameters')">Parameters</button>
+      <button class="tab" onclick="switchTab('advanced')">Advanced</button>
+      <button class="tab" onclick="switchTab('backup')">Backup/Restore</button>
+      <button class="tab" onclick="switchTab('settings')">Settings</button>
+    </div>
+
+    <!-- Connection Tab -->
+    <div id="connection-tab" class="tab-content active">
+      <div class="section">
+        <h2>Vehicle & Connection</h2>
+        <select id="vehicleSelect">
+          <option value="VW Tiguan">VW Tiguan</option>
+          <option value="Nissan Titan XD 2017">Nissan Titan XD 2017</option>
+        </select>
+        <button id="selectVehicle">Select Vehicle</button>
+        <br><br>
+        <button id="listPorts">Scan COM Ports</button>
+        <select id="portSelect"><option value="">Select COM Port</option></select>
+        <button id="connectBtn" class="success">Connect</button>
+        <button id="disconnectBtn" class="danger" disabled>Disconnect</button>
+        <br><br>
+        <div class="info-box">
+          <strong>Status:</strong> <span id="connectionStatus" class="status-disconnected">Not Connected</span><br>
+          <strong>VIN:</strong> <span id="vinDisplay">Not Read</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>ECU Selection</h2>
+        <select id="ecuSelect"><option value="">Select ECU Module</option></select>
+        <button id="startSession">Start Diagnostic Session</button>
+        <button id="readVIN" class="success">Read VIN</button>
+      </div>
+    </div>
+
+    <!-- Diagnostics Tab -->
+    <div id="diagnostics-tab" class="tab-content">
+      <div class="grid">
+        <div class="section">
+          <h2>Live Data Stream</h2>
+          <button id="readLiveData">Read Live Data</button>
+          <button id="startLogging">Start Logging</button>
+          <button id="stopLogging" disabled>Stop Logging</button>
+          <div id="liveData"></div>
+        </div>
+
+        <div class="section">
+          <h2>Diagnostic Trouble Codes</h2>
+          <button id="readDTC">Read DTCs</button>
+          <button id="clearDTC" class="danger">Clear DTCs</button>
+          <button id="readFreezeFrame">Read Freeze Frame</button>
+          <div id="dtcCodes"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>ECU Information</h2>
+        <button id="readECUInfo">Read ECU Info</button>
+        <div id="ecuInfo"></div>
+      </div>
+    </div>
+
+    <!-- Parameters Tab -->
+    <div id="parameters-tab" class="tab-content">
+      <div class="section">
+        <h2>Parameter Browser</h2>
+        <input type="text" id="paramSearch" placeholder="Search parameters...">
+        <button id="searchParams">Search</button>
+        <select id="moduleSelect">
+          <option value="engine">Engine</option>
+          <option value="transmission">Transmission</option>
+          <option value="abs">ABS/Stability</option>
+          <option value="instrument">Instrument Cluster</option>
+        </select>
+        <button id="browseParams">Browse Module</button>
+        <div id="parameterBrowser"></div>
+      </div>
+
+      <div class="section">
+        <h2>Write Parameter</h2>
+        <div class="warning-box">
+          ⚠️ <strong>Warning:</strong> Modifying ECU parameters can affect vehicle operation. Backup before making changes.
+        </div>
+        <input type="text" id="paramId" placeholder="Parameter ID (hex)">
+        <input type="text" id="paramValue" placeholder="Value">
+        <button id="validateParam">Validate</button>
+        <button id="writeParam" class="warning">Write Parameter</button>
+        <div id="validationResult"></div>
+      </div>
+    </div>
+
+    <!-- Advanced Tab -->
+    <div id="advanced-tab" class="tab-content">
+      <div class="grid-3">
+        <div class="section">
+          <h2>Security Access</h2>
+          <input type="number" id="securityLevel" placeholder="Level (1-3)" min="1" max="3" value="1">
+          <button id="requestSeed">Request Seed</button>
+          <button id="sendKey" disabled>Send Key</button>
+          <div id="securityStatus"></div>
+        </div>
+
+        <div class="section">
+          <h2>Adaptation Channels</h2>
+          <input type="text" id="adaptChannel" placeholder="Channel (hex)">
+          <button id="readAdapt">Read</button>
+          <input type="text" id="adaptValue" placeholder="Value">
+          <input type="text" id="workshopCode" placeholder="Workshop Code" value="00000">
+          <button id="writeAdapt" class="warning">Write</button>
+        </div>
+
+        <div class="section">
+          <h2>Coding</h2>
+          <button id="readCoding">Read Coding</button>
+          <textarea id="codingData" placeholder="Coding data (hex)" rows="3" style="width: 100%; margin: 5px 0;"></textarea>
+          <button id="writeCoding" class="danger">Write Coding</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="section">
+          <h2>Component Testing</h2>
+          <input type="text" id="componentId" placeholder="Component ID">
+          <select id="testType">
+            <option value="1">Activate</option>
+            <option value="2">Deactivate</option>
+          </select>
+          <button id="componentTest">Run Test</button>
+        </div>
+
+        <div class="section">
+          <h2>Memory Operations</h2>
+          <input type="text" id="memAddress" placeholder="Address (hex)">
+          <input type="number" id="memSize" placeholder="Size" value="16">
+          <button id="readMem">Read Memory</button>
+          <br>
+          <input type="text" id="memData" placeholder="Data (hex)">
+          <button id="writeMem" class="danger">Write Memory</button>
+          <div id="memoryResult"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Backup/Restore Tab -->
+    <div id="backup-tab" class="tab-content">
+      <div class="grid">
+        <div class="section">
+          <h2>Create Backup</h2>
+          <textarea id="backupNotes" placeholder="Backup notes..." rows="3" style="width: 100%; margin: 10px 0;"></textarea>
+          <button id="createBackup" class="success">Create Backup Now</button>
+          <button id="exportBackup">Export Backup</button>
+          <button id="importBackup">Import Backup</button>
+        </div>
+
+        <div class="section">
+          <h2>Backup History</h2>
+          <button id="refreshBackups">Refresh List</button>
+          <select id="backupFilter">
+            <option value="">All Backups</option>
+            <option value="manual">Manual Only</option>
+            <option value="auto">Auto Only</option>
+          </select>
+          <div id="backupList"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Restore Options</h2>
+        <div class="warning-box">
+          ⚠️ <strong>Caution:</strong> Restoring will overwrite current ECU parameters. Create a backup first!
+        </div>
+        <label><input type="checkbox" id="verifyVIN" checked> Verify VIN matches</label><br>
+        <label><input type="checkbox" id="restoreParams" checked> Restore Parameters</label><br>
+        <label><input type="checkbox" id="restoreCoding"> Restore Coding</label><br>
+        <button id="restoreBtn" class="warning">Restore Selected Backup</button>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="settings-tab" class="tab-content">
+      <div class="section">
+        <h2>Safety Settings</h2>
+        <div class="info-box">
+          <strong>Safe Mode:</strong> When enabled, prevents all write operations to protect the ECU from accidental modifications.
+        </div>
+        <label>
+          <input type="checkbox" id="safeModeToggle" checked> Enable Safe Mode (Read-Only)
+        </label>
+        <br><br>
+        <div class="warning-box" id="safeModeWarning">
+          <strong>⚠️ Safe Mode is OFF</strong><br>
+          All write operations are enabled. Use with extreme caution!
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Advanced Options</h2>
+        <label><input type="checkbox" id="autoBackup" checked> Auto-backup before writes</label><br>
+        <label><input type="checkbox" id="verifyWrites" checked> Verify writes automatically</label><br>
+        <label><input type="checkbox" id="testerPresent"> Send Tester Present (keep session alive)</label><br>
+      </div>
+
+      <div class="section">
+        <h2>Data Export</h2>
+        <button id="exportLogs">Export Data Logs</button>
+        <button id="clearLogs" class="danger">Clear All Logs</button>
+      </div>
+    </div>
+
+    <!-- Console Output (Always Visible) -->
+    <div class="section">
+      <h2>Console Output</h2>
+      <div id="output"></div>
+    </div>
+  </div>
+
+  <!-- Parameter Details Modal -->
+  <div id="paramModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h2 id="modalParamName"></h2>
+      <div id="modalParamDetails"></div>
+      <button id="modalWriteBtn" class="warning">Write Value</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
