@@ -6,6 +6,9 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "build:mac": "electron-builder --mac",
     "lint": "eslint .",
     "test": "jest"
   },
@@ -49,11 +52,37 @@
       "preload.js",
       "index.html",
       "app.js",
+      "security.js",
+      "parameterDatabase.js",
+      "backupRestore.js",
+      "isotp.js",
+      "uds.js",
+      "manufacturerProtocols.js",
       "node_modules",
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "category": "Utility",
+      "icon": "build/icon.png",
+      "desktop": {
+        "Name": "VWConnApp",
+        "Comment": "Professional ECU Diagnostic Tool",
+        "Categories": "Utility;Development;Electronics;"
+      }
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.icns"
     }
   }
 }
