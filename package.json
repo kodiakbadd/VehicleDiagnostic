@@ -50,17 +50,10 @@
       "output": "dist"
     },
     "files": [
-      "main.js",
-      "preload.js",
-      "index.html",
-      "app.js",
-      "security.js",
-      "parameterDatabase.js",
-      "backupRestore.js",
-      "isotp.js",
-      "uds.js",
-      "manufacturerProtocols.js",
-      "node_modules",
+      "*.js",
+      "*.html",
+      "!node_modules",
+      "node_modules/**/*",
       "package.json"
     ],
     "win": {
