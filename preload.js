@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('electronAPI', {
+// Expose API as 'api' for consistency with app.js
+contextBridge.exposeInMainWorld('api', {
   // Connection & Basic Functions
   listPorts: () => ipcRenderer.invoke('list-ports'),
   connect: (port) => ipcRenderer.invoke('connect', port),

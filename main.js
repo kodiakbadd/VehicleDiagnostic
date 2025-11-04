@@ -147,8 +147,16 @@ ipcMain.handle('connect', async (event, portPath) => {
       try {
         diagnosticLog.push(`[2] Trying baud rate: ${baudRate}`);
         
+        // Clean up previous port attempt
         if (port && port.isOpen) {
-          port.close();
+          await new Promise((resolve) => {
+            port.close(() => {
+              if (parser) parser.removeAllListeners();
+              resolve();
+            });
+          });
+        } else if (port) {
+          if (parser) parser.removeAllListeners();
         }
         
         port = new SerialPort({ 
@@ -247,19 +255,47 @@ ipcMain.handle('connect', async (event, portPath) => {
 });
 
 ipcMain.handle('disconnect', async () => {
-  if (isLogging) {
-    clearInterval(logInterval);
-    isLogging = false;
+  try {
+    if (isLogging) {
+      clearInterval(logInterval);
+      isLogging = false;
+    }
+    if (diagnosticSession) {
+      try {
+        await sendCommand('1001');
+      } catch (e) {
+        // Ignore errors during disconnect
+      }
+      diagnosticSession = false;
+    }
+    if (port && port.isOpen) {
+      return new Promise((resolve) => {
+        port.close((err) => {
+          if (parser) {
+            parser.removeAllListeners();
+          }
+          port = null;
+          parser = null;
+          connectedECUs = [];
+          currentECU = null;
+          resolve({ success: true });
+        });
+      });
+    }
+    connectedECUs = [];
+    currentECU = null;
+    return { success: true };
+  } catch (error) {
+    // Force cleanup even on error
+    if (parser) {
+      parser.removeAllListeners();
+    }
+    port = null;
+    parser = null;
+    connectedECUs = [];
+    currentECU = null;
+    return { success: true, warning: 'Disconnected with errors' };
   }
-  if (diagnosticSession) {
-    await sendCommand('1001');
-    diagnosticSession = false;
-  }
-  if (port && port.isOpen) {
-    port.close();
-  }
-  connectedECUs = [];
-  return { success: true };
 });
 
 ipcMain.handle('select-vehicle', async (event, vehicle) => {
@@ -850,29 +886,82 @@ async function detectECUs() {
 }
 
 async function sendCommandToECU(ecuAddress, command) {
+  if (!port || !port.isOpen) {
+    throw new Error('Port not open');
+  }
+  
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('Timeout')), 3000);
+    const timeout = setTimeout(() => {
+      parser.removeAllListeners('data');
+      reject(new Error('Timeout waiting for ECU response'));
+    }, 3000);
     
-    parser.once('data', (data) => {
+    const dataHandler = (data) => {
       clearTimeout(timeout);
+      parser.removeListener('data', dataHandler);
       resolve(data.trim());
-    });
+    };
     
-    port.write(`ATSH${ecuAddress}\r`);
-    setTimeout(() => port.write(command + '\r'), 100);
+    parser.once('data', dataHandler);
+    
+    try {
+      port.write(`ATSH${ecuAddress}\r`, (err) => {
+        if (err) {
+          clearTimeout(timeout);
+          parser.removeListener('data', dataHandler);
+          reject(err);
+          return;
+        }
+        setTimeout(() => {
+          port.write(command + '\r', (err) => {
+            if (err) {
+              clearTimeout(timeout);
+              parser.removeListener('data', dataHandler);
+              reject(err);
+            }
+          });
+        }, 100);
+      });
+    } catch (err) {
+      clearTimeout(timeout);
+      parser.removeListener('data', dataHandler);
+      reject(err);
+    }
   });
 }
 
 async function sendCommand(cmd) {
+  if (!port || !port.isOpen) {
+    throw new Error('Port not open');
+  }
+  
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('Timeout')), 3000);
+    const timeout = setTimeout(() => {
+      parser.removeAllListeners('data');
+      reject(new Error('Timeout waiting for adapter response'));
+    }, 3000);
     
-    parser.once('data', (data) => {
+    const dataHandler = (data) => {
       clearTimeout(timeout);
+      parser.removeListener('data', dataHandler);
       resolve(data.trim());
-    });
+    };
     
-    port.write(cmd + '\r');
+    parser.once('data', dataHandler);
+    
+    try {
+      port.write(cmd + '\r', (err) => {
+        if (err) {
+          clearTimeout(timeout);
+          parser.removeListener('data', dataHandler);
+          reject(err);
+        }
+      });
+    } catch (err) {
+      clearTimeout(timeout);
+      parser.removeListener('data', dataHandler);
+      reject(err);
+    }
   });
 }
 
