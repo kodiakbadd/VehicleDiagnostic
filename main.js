@@ -133,25 +133,116 @@ ipcMain.handle('list-ports', async () => {
 });
 
 ipcMain.handle('connect', async (event, portPath) => {
+  const diagnosticLog = [];
+  
   try {
-    port = new SerialPort({ path: portPath, baudRate: 38400 });
-    parser = port.pipe(new ReadlineParser({ delimiter: '\r' }));
+    diagnosticLog.push(`[1] Attempting to connect to: ${portPath}`);
     
-    await new Promise((resolve, reject) => {
-      port.on('open', resolve);
-      port.on('error', reject);
-    });
+    // Try multiple baud rates - ELM327 adapters commonly use 38400, 115200, or 9600
+    const baudRates = [38400, 115200, 9600, 57600];
+    let connected = false;
+    let lastError = null;
     
-    await sendCommand('ATZ');
-    await sendCommand('ATE0');
-    await sendCommand('ATL0');
-    await sendCommand('ATSP0');
+    for (const baudRate of baudRates) {
+      try {
+        diagnosticLog.push(`[2] Trying baud rate: ${baudRate}`);
+        
+        if (port && port.isOpen) {
+          port.close();
+        }
+        
+        port = new SerialPort({ 
+          path: portPath, 
+          baudRate: baudRate,
+          autoOpen: false
+        });
+        
+        parser = port.pipe(new ReadlineParser({ delimiter: '\r' }));
+        
+        diagnosticLog.push(`[3] Opening serial port...`);
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Port open timeout')), 5000);
+          port.open((err) => {
+            clearTimeout(timeout);
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        
+        diagnosticLog.push(`[4] Port opened successfully at ${baudRate} baud`);
+        
+        // Initialize adapter with detailed responses
+        diagnosticLog.push(`[5] Sending ATZ (Reset)`);
+        const reset = await sendCommand('ATZ');
+        diagnosticLog.push(`[5a] ATZ Response: ${reset}`);
+        
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait after reset
+        
+        diagnosticLog.push(`[6] Sending ATI (Identify)`);
+        const identify = await sendCommand('ATI');
+        diagnosticLog.push(`[6a] ATI Response: ${identify}`);
+        
+        diagnosticLog.push(`[7] Sending ATE0 (Echo Off)`);
+        const echo = await sendCommand('ATE0');
+        diagnosticLog.push(`[7a] ATE0 Response: ${echo}`);
+        
+        diagnosticLog.push(`[8] Sending ATL0 (Linefeeds Off)`);
+        const linefeed = await sendCommand('ATL0');
+        diagnosticLog.push(`[8a] ATL0 Response: ${linefeed}`);
+        
+        diagnosticLog.push(`[9] Sending ATSP0 (Auto Protocol)`);
+        const protocol = await sendCommand('ATSP0');
+        diagnosticLog.push(`[9a] ATSP0 Response: ${protocol}`);
+        
+        diagnosticLog.push(`[10] Testing basic OBD command (0100)`);
+        const testCmd = await sendCommand('0100');
+        diagnosticLog.push(`[10a] 0100 Response: ${testCmd}`);
+        
+        if (testCmd.includes('NO DATA') || testCmd.includes('?') || testCmd.includes('ERROR')) {
+          diagnosticLog.push(`[10b] Invalid response, trying next baud rate`);
+          continue;
+        }
+        
+        diagnosticLog.push(`[11] Connection successful!`);
+        connected = true;
+        
+        diagnosticLog.push(`[12] Detecting ECUs...`);
+        connectedECUs = await detectECUs();
+        diagnosticLog.push(`[12a] Found ${connectedECUs.length} ECUs: ${JSON.stringify(connectedECUs)}`);
+        
+        return { 
+          success: true, 
+          ecus: connectedECUs,
+          diagnosticLog,
+          adapterInfo: identify,
+          baudRate
+        };
+        
+      } catch (err) {
+        diagnosticLog.push(`[ERROR at ${baudRate} baud] ${err.message}`);
+        lastError = err;
+        continue;
+      }
+    }
     
-    connectedECUs = await detectECUs();
+    if (!connected) {
+      diagnosticLog.push(`[FAIL] Could not connect at any baud rate`);
+      return { 
+        success: false, 
+        error: `Connection failed: ${lastError?.message || 'Unknown error'}`,
+        diagnosticLog,
+        recommendation: 'ADAPTER ISSUE: The adapter may not be compatible or is not properly connected to the vehicle.'
+      };
+    }
     
-    return { success: true, ecus: connectedECUs };
   } catch (error) {
-    return { success: false, error: error.message };
+    diagnosticLog.push(`[CRITICAL ERROR] ${error.message}`);
+    return { 
+      success: false, 
+      error: error.message,
+      diagnosticLog,
+      recommendation: 'Check if adapter is plugged into vehicle OBD-II port and vehicle ignition is ON'
+    };
   }
 });
 
