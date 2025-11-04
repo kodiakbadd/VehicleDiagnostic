@@ -1,18 +1,14 @@
 {
   "name": "VWConnApp",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Professional ECU Diagnostic Tool for VW Tiguan and Nissan Titan XD 2017",
   "author": "kodiakbadd",
   "private": true,
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux",
-    "build:mac": "electron-builder --mac",
-    "lint": "eslint .",
-    "test": "jest"
+    "build": "electron-builder --win",
+    "build:win": "electron-builder --win"
   },
   "dependencies": {
     "react": "19.1.0",
@@ -44,8 +40,9 @@
     "node": ">=20"
   },
   "build": {
-    "appId": "com.vwconnapp",
+    "appId": "com.kodiakbadd.vwconnapp",
     "productName": "VWConnApp",
+    "copyright": "Copyright © 2025 kodiakbadd",
     "directories": {
       "output": "dist"
     },
@@ -57,23 +54,27 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico"
-    },
-    "linux": {
       "target": [
-        "AppImage",
-        "deb",
-        "rpm"
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
       ],
-      "category": "Utility",
-      "maintainer": "kodiakbadd",
-      "description": "Professional ECU Diagnostic Tool for VW Tiguan and Nissan Titan XD"
+      "verifyUpdateCodeSignature": false,
+      "requestedExecutionLevel": "asInvoker"
     },
-    "mac": {
-      "target": "dmg",
-      "category": "public.app-category.utilities",
-      "icon": "build/icon.icns"
-    }
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "VWConnApp",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    },
+    "fileAssociations": [],
+    "protocols": []
   }
 }
+
