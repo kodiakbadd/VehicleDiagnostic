@@ -146,11 +146,188 @@ window.addEventListener('DOMContentLoaded', () => {
   logMessage('4. Click "Connect" to run diagnostics', 'info');
   logMessage('', 'info');
   
-  // Set up event listeners
+  // Connection tab event listeners
   document.getElementById('listPorts').addEventListener('click', refreshPorts);
   document.getElementById('connectBtn').addEventListener('click', connect);
   document.getElementById('disconnectBtn').addEventListener('click', disconnect);
+  document.getElementById('readVIN').addEventListener('click', readVIN);
+  document.getElementById('startSession').addEventListener('click', startDiagnosticSession);
+  
+  // Diagnostics tab event listeners
+  document.getElementById('readLiveData').addEventListener('click', readLiveData);
+  document.getElementById('startLogging').addEventListener('click', startLogging);
+  document.getElementById('stopLogging').addEventListener('click', stopLogging);
+  document.getElementById('readDTC').addEventListener('click', readDTC);
+  document.getElementById('clearDTC').addEventListener('click', clearDTC);
   
   // Auto-refresh ports on load
   refreshPorts();
 });
+
+// VIN Reading
+async function readVIN() {
+  if (!isConnected) {
+    logMessage('Not connected to vehicle', 'error');
+    return;
+  }
+  
+  try {
+    logMessage('Reading VIN...', 'info');
+    const result = await window.api.readVIN();
+    
+    if (result.success) {
+      logMessage(`✓ VIN: ${result.vin}`, 'success');
+      document.getElementById('vinDisplay').textContent = result.vin;
+    } else {
+      logMessage(`✗ Error reading VIN: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    logMessage(`✗ VIN read failed: ${error.message}`, 'error');
+  }
+}
+
+// Diagnostic Session
+async function startDiagnosticSession() {
+  if (!isConnected) {
+    logMessage('Not connected to vehicle', 'error');
+    return;
+  }
+  
+  try {
+    logMessage('Starting diagnostic session...', 'info');
+    const result = await window.api.startDiagnosticSession();
+    
+    if (result.success) {
+      logMessage('✓ Diagnostic session started', 'success');
+    } else {
+      logMessage(`✗ Failed to start session: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    logMessage(`✗ Session start failed: ${error.message}`, 'error');
+  }
+}
+
+// Live Data Reading
+let loggingInterval = null;
+
+async function readLiveData() {
+  if (!isConnected) {
+    logMessage('Not connected to vehicle', 'error');
+    return;
+  }
+  
+  try {
+    const result = await window.api.readLiveData();
+    
+    if (result.success) {
+      const liveDataDiv = document.getElementById('liveData');
+      liveDataDiv.innerHTML = `
+        <div style="font-family: monospace;">
+          <strong>RPM:</strong> ${result.data.rpm} RPM<br>
+          <strong>Speed:</strong> ${result.data.speed} km/h<br>
+          <strong>Coolant Temp:</strong> ${result.data.coolant}°C<br>
+          <strong>Throttle:</strong> ${result.data.throttle.toFixed(1)}%<br>
+          <strong>Engine Load:</strong> ${result.data.engineLoad.toFixed(1)}%<br>
+          <strong>Fuel Level:</strong> ${result.data.fuelLevel.toFixed(1)}%
+        </div>
+      `;
+      logMessage('✓ Live data updated', 'success');
+    } else {
+      logMessage(`✗ Error reading live data: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    logMessage(`✗ Live data read failed: ${error.message}`, 'error');
+  }
+}
+
+async function startLogging() {
+  if (!isConnected) {
+    logMessage('Not connected to vehicle', 'error');
+    return;
+  }
+  
+  if (loggingInterval) {
+    logMessage('Logging already running', 'warning');
+    return;
+  }
+  
+  logMessage('Started live data logging (1 Hz)', 'success');
+  document.getElementById('startLogging').disabled = true;
+  document.getElementById('stopLogging').disabled = false;
+  
+  loggingInterval = setInterval(async () => {
+    await readLiveData();
+  }, 1000);
+}
+
+async function stopLogging() {
+  if (loggingInterval) {
+    clearInterval(loggingInterval);
+    loggingInterval = null;
+    logMessage('Stopped live data logging', 'warning');
+    document.getElementById('startLogging').disabled = false;
+    document.getElementById('stopLogging').disabled = true;
+  }
+}
+
+// DTC Functions
+async function readDTC() {
+  if (!isConnected) {
+    logMessage('Not connected to vehicle', 'error');
+    return;
+  }
+  
+  try {
+    logMessage('Reading diagnostic trouble codes...', 'info');
+    const result = await window.api.readDTC();
+    
+    if (result.success) {
+      const dtcDiv = document.getElementById('dtcCodes');
+      
+      if (result.codes && result.codes.length > 0) {
+        let html = '<div style="font-family: monospace;">';
+        html += `<strong>Found ${result.codes.length} DTC(s):</strong><br><br>`;
+        result.codes.forEach(code => {
+          html += `<div style="background:#363636; padding:8px; margin:5px 0; border-left:3px solid #e74c3c;">
+            <strong style="color:#e74c3c;">${code}</strong>
+          </div>`;
+        });
+        html += '</div>';
+        dtcDiv.innerHTML = html;
+        logMessage(`✓ Found ${result.codes.length} trouble code(s)`, 'warning');
+      } else {
+        dtcDiv.innerHTML = '<div style="color:#2ecc71;">✓ No trouble codes found</div>';
+        logMessage('✓ No trouble codes - vehicle OK', 'success');
+      }
+    } else {
+      logMessage(`✗ Error reading DTCs: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    logMessage(`✗ DTC read failed: ${error.message}`, 'error');
+  }
+}
+
+async function clearDTC() {
+  if (!isConnected) {
+    logMessage('Not connected to vehicle', 'error');
+    return;
+  }
+  
+  if (!confirm('Are you sure you want to clear all diagnostic trouble codes? This will turn off the check engine light.')) {
+    return;
+  }
+  
+  try {
+    logMessage('Clearing diagnostic trouble codes...', 'info');
+    const result = await window.api.clearDTC();
+    
+    if (result.success) {
+      logMessage('✓ Diagnostic trouble codes cleared', 'success');
+      document.getElementById('dtcCodes').innerHTML = '<div style="color:#2ecc71;">✓ DTCs cleared successfully</div>';
+    } else {
+      logMessage(`✗ Error clearing DTCs: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    logMessage(`✗ DTC clear failed: ${error.message}`, 'error');
+  }
+}
